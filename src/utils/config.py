@@ -1,0 +1,41 @@
+import os
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
+
+class Config:
+    # 千问API配置
+    QWEN_API_KEY = os.getenv('QWEN_API_KEY', '')
+    QWEN_VOICE_MODEL = os.getenv('QWEN_VOICE_MODEL', 'qwen-voice-recognition')
+    QWEN_CHAT_MODEL = os.getenv('QWEN_CHAT_MODEL', 'qwen-chat')
+    
+    # 搜索API配置
+    SEARCH_API_KEY = os.getenv('SEARCH_API_KEY', '')
+    SEARCH_ENGINE = os.getenv('SEARCH_ENGINE', 'google')
+    
+    # 应用配置
+    APP_NAME = os.getenv('APP_NAME', 'Better-Student')
+    APP_VERSION = os.getenv('APP_VERSION', '0.1.0')
+    
+    # 数据库配置
+    DATABASE_PATH = os.getenv('DATABASE_PATH', './data/better_student.db')
+    
+    # 日志配置
+    LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+    LOG_FILE = os.getenv('LOG_FILE', './logs/app.log')
+    
+    # 音频配置
+    AUDIO_SAMPLE_RATE = int(os.getenv('AUDIO_SAMPLE_RATE', '16000'))
+    AUDIO_CHANNELS = int(os.getenv('AUDIO_CHANNELS', '1'))
+    AUDIO_CHUNK_SIZE = int(os.getenv('AUDIO_CHUNK_SIZE', '1024'))
+    
+    # 识别配置
+    RECOGNITION_TIMEOUT = float(os.getenv('RECOGNITION_TIMEOUT', '5'))
+    RECOGNITION_INTERVAL = float(os.getenv('RECOGNITION_INTERVAL', '0.5'))
+    
+    @classmethod
+    def get(cls, key, default=None):
+        return getattr(cls, key, default)
+
+config = Config()
