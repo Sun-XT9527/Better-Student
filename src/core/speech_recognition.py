@@ -6,6 +6,8 @@ import wave
 import base64
 import threading
 import time
+import sounddevice as sd
+import numpy as np
 from src.api.qwen_api import qwen_api
 from src.utils.config import config
 from src.utils.logger import get_logger
@@ -21,29 +23,28 @@ class SpeechRecognizer:
         self.audio_data = []
         self.thread = None
         self.callback = None
+        self.audio_source = 'microphone'  # 默认为麦克风
+        self.sd_stream = None
     
-    def start_recording(self, callback=None):
-        """开始录音"""
+    def start_recording(self, callback=None, audio_source='microphone'):
+        """开始录音
+        
+        Args:
+            callback: 识别结果回调函数
+            audio_source: 音频来源，可选值: 'microphone' (麦克风), 'system' (系统音频)
+        """
         try:
             self.callback = callback
+            self.audio_source = audio_source
             self.is_recording = True
             self.audio_data = []
-            
-            # 打开音频流
-            self.stream = self.pa.open(
-                format=pyaudio.paInt16,
-                channels=config.AUDIO_CHANNELS,
-                rate=config.AUDIO_SAMPLE_RATE,
-                input=True,
-                frames_per_buffer=config.AUDIO_CHUNK_SIZE
-            )
             
             # 启动录音线程
             self.thread = threading.Thread(target=self._record)
             self.thread.daemon = True
             self.thread.start()
             
-            logger.info("开始录音")
+            logger.info(f"开始录音，音频来源: {audio_source}")
         except Exception as e:
             logger.error(f"启动录音失败: {str(e)}")
             raise SpeechRecognitionError(f"启动录音失败: {str(e)}")
@@ -54,23 +55,87 @@ class SpeechRecognizer:
             self.is_recording = False
             if self.thread:
                 self.thread.join()
+            
+            # 关闭麦克风音频流
             if self.stream:
                 self.stream.stop_stream()
                 self.stream.close()
-            logger.info("停止录音")
+                self.stream = None
+            
+            # 关闭系统音频流
+            if self.sd_stream:
+                self.sd_stream.stop()
+                self.sd_stream.close()
+                self.sd_stream = None
+            
+            logger.info(f"停止录音，音频来源: {self.audio_source}")
         except Exception as e:
             logger.error(f"停止录音失败: {str(e)}")
             raise SpeechRecognitionError(f"停止录音失败: {str(e)}")
     
     def _record(self):
         """录音线程函数"""
-        while self.is_recording:
-            data = self.stream.read(config.AUDIO_CHUNK_SIZE)
-            self.audio_data.append(data)
+        if self.audio_source == 'microphone':
+            self._record_from_microphone()
+        elif self.audio_source == 'system':
+            self._record_from_system()
+        else:
+            logger.error(f"不支持的音频来源: {self.audio_source}")
+            self.is_recording = False
+    
+    def _record_from_microphone(self):
+        """从麦克风采集音频"""
+        try:
+            # 打开麦克风音频流
+            self.stream = self.pa.open(
+                format=pyaudio.paInt16,
+                channels=config.AUDIO_CHANNELS,
+                rate=config.AUDIO_SAMPLE_RATE,
+                input=True,
+                frames_per_buffer=config.AUDIO_CHUNK_SIZE
+            )
             
-            # 每间隔一段时间进行一次语音识别
-            if len(self.audio_data) * config.AUDIO_CHUNK_SIZE >= config.AUDIO_SAMPLE_RATE * config.RECOGNITION_INTERVAL:
-                self._recognize()
+            while self.is_recording:
+                data = self.stream.read(config.AUDIO_CHUNK_SIZE)
+                self.audio_data.append(data)
+                
+                # 每间隔一段时间进行一次语音识别
+                if len(self.audio_data) * config.AUDIO_CHUNK_SIZE >= config.AUDIO_SAMPLE_RATE * config.RECOGNITION_INTERVAL:
+                    self._recognize()
+        except Exception as e:
+            logger.error(f"从麦克风采集音频失败: {str(e)}")
+            self.is_recording = False
+    
+    def _record_from_system(self):
+        """从系统音频输出采集音频"""
+        try:
+            def callback(indata, frames, time, status):
+                if status:
+                    logger.warning(f"音频采集状态: {status}")
+                # 将numpy数组转换为bytes
+                data = indata.astype(np.int16).tobytes()
+                self.audio_data.append(data)
+                
+                # 每间隔一段时间进行一次语音识别
+                if len(self.audio_data) * config.AUDIO_CHUNK_SIZE >= config.AUDIO_SAMPLE_RATE * config.RECOGNITION_INTERVAL:
+                    self._recognize()
+            
+            # 打开系统音频流
+            self.sd_stream = sd.InputStream(
+                samplerate=config.AUDIO_SAMPLE_RATE,
+                channels=config.AUDIO_CHANNELS,
+                dtype=np.int16,
+                callback=callback
+            )
+            
+            self.sd_stream.start()
+            
+            # 保持线程运行
+            while self.is_recording:
+                time.sleep(0.1)
+        except Exception as e:
+            logger.error(f"从系统音频采集失败: {str(e)}")
+            self.is_recording = False
     
     def _recognize(self):
         """执行语音识别"""
@@ -78,11 +143,8 @@ class SpeechRecognizer:
             # 构建完整的音频数据
             audio_data = b''.join(self.audio_data)
             
-            # 转换为base64编码
-            audio_base64 = base64.b64encode(audio_data).decode('utf-8')
-            
-            # 调用千问API进行语音识别
-            text = qwen_api.recognize_speech(audio_base64)
+            # 直接传递原始字节数据给API
+            text = qwen_api.recognize_speech(audio_data)
             
             # 清空音频数据，准备下一次识别
             self.audio_data = []
@@ -101,11 +163,8 @@ class SpeechRecognizer:
             with wave.open(file_path, 'rb') as wf:
                 audio_data = wf.readframes(wf.getnframes())
             
-            # 转换为base64编码
-            audio_base64 = base64.b64encode(audio_data).decode('utf-8')
-            
-            # 调用千问API进行语音识别
-            text = qwen_api.recognize_speech(audio_base64)
+            # 直接传递原始字节数据给API
+            text = qwen_api.recognize_speech(audio_data)
             return text
         except Exception as e:
             logger.error(f"识别音频文件失败: {str(e)}")

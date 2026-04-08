@@ -1,15 +1,14 @@
 # 核心依赖
 pyaudio==0.2.14
 requests==2.31.0
-pyqt5==5.15.10
+PyQt5==5.15.10
 nltk==3.8.1
-spacy==3.6.0
 beautifulsoup4==4.12.2
 python-dotenv==1.0.0
+sounddevice==0.4.6
+dashscope==1.25.15
+openai==2.30.0
 
 # 可选依赖
 numpy==1.26.4
 pandas==2.2.1
-
-# Spacy模型
-# 安装命令: python -m spacy download zh_core_web_sm

@@ -96,11 +96,9 @@ class TermManager:
     def process_terms_in_text(self, text, transcription_id):
         """处理文本中的术语"""
         try:
-            from src.core.text_analyzer import TextAnalyzer
-            analyzer = TextAnalyzer()
-            
-            # 识别术语
-            terms = analyzer.identify_terms(text)
+            # 使用AI集成模块分析文本，识别术语
+            analysis_result = self.ai.analyze_text(text)
+            terms = analysis_result['terms']
             
             # 处理每个术语
             processed_terms = []

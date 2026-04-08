@@ -4,7 +4,6 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QLabel, QListWidget, QListWidgetItem, QSplitter
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QTextCursor
-from src.core.text_analyzer import TextAnalyzer
 from src.core.ai_integration import AIIntegration
 from src.utils.logger import get_logger
 
@@ -13,7 +12,6 @@ logger = get_logger(__name__)
 class AnalysisPanel(QWidget):
     def __init__(self):
         super().__init__()
-        self.analyzer = TextAnalyzer()
         self.ai = AIIntegration()
         
         # 创建布局
@@ -65,7 +63,7 @@ class AnalysisPanel(QWidget):
         
         try:
             # 分析文本
-            results = self.analyzer.analyze_text(text)
+            results = self.ai.analyze_text(text)
             
             # 显示分析结果
             self.analysis_result.clear()
@@ -107,14 +105,14 @@ class AnalysisPanel(QWidget):
                 # 显示术语解释
                 term = data['content']
                 self.detail_text.append("=== 术语: %s ===" % term)
-                explanation = self.analyzer.get_term_explanation(term)
-                self.detail_text.append("解释: %s" % explanation)
+                term_info = self.ai.process_term(term)
+                self.detail_text.append("解释: %s" % term_info['explanation'])
             elif data['type'] == 'question':
                 # 显示问题答案
                 question = data['content']
                 self.detail_text.append("=== 问题: %s ===" % question)
-                answer = self.analyzer.answer_question(question)
-                self.detail_text.append("答案: %s" % answer)
+                question_info = self.ai.process_question(question)
+                self.detail_text.append("答案: %s" % question_info['answer'])
             
             self.detail_text.moveCursor(QTextCursor.End)
         except Exception as e:

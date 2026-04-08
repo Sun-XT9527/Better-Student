@@ -67,14 +67,14 @@ class SettingsPanel(QWidget):
         self.timeout_label = QLabel("超时时间(秒):")
         self.timeout_spin = QSpinBox()
         self.timeout_spin.setRange(1, 30)
-        self.timeout_spin.setSingleStep(0.5)
-        self.timeout_spin.setValue(config.RECOGNITION_TIMEOUT)
+        self.timeout_spin.setSingleStep(1)
+        self.timeout_spin.setValue(int(config.RECOGNITION_TIMEOUT))
         
         self.interval_label = QLabel("识别间隔(秒):")
         self.interval_spin = QSpinBox()
-        self.interval_spin.setRange(0.1, 5)
-        self.interval_spin.setSingleStep(0.1)
-        self.interval_spin.setValue(config.RECOGNITION_INTERVAL)
+        self.interval_spin.setRange(1, 50)
+        self.interval_spin.setSingleStep(1)
+        self.interval_spin.setValue(int(config.RECOGNITION_INTERVAL * 10))
         
         self.recognition_layout.addRow(self.timeout_label, self.timeout_spin)
         self.recognition_layout.addRow(self.interval_label, self.interval_spin)
@@ -131,7 +131,7 @@ class SettingsPanel(QWidget):
             config.AUDIO_CHANNELS = self.channels_spin.value()
             config.AUDIO_CHUNK_SIZE = self.chunk_size_spin.value()
             config.RECOGNITION_TIMEOUT = self.timeout_spin.value()
-            config.RECOGNITION_INTERVAL = self.interval_spin.value()
+            config.RECOGNITION_INTERVAL = self.interval_spin.value() / 10
             
             # 实际应用中应该将设置保存到文件或数据库
             logger.info("保存设置成功")
@@ -151,7 +151,7 @@ class SettingsPanel(QWidget):
         
         # 重置识别设置
         self.timeout_spin.setValue(5)
-        self.interval_spin.setValue(0.5)
+        self.interval_spin.setValue(5)
         
         logger.info("重置设置成功")
 

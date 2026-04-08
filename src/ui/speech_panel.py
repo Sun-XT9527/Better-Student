@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QLabel, QProgressBar, QSplitter, QToolTip
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTextEdit, QLabel, QProgressBar, QSplitter, QToolTip, QComboBox
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QPoint
 from PyQt5.QtGui import QTextCursor, QTextCharFormat, QMouseEvent
 from src.core.speech_recognition import SpeechRecognizer
@@ -25,10 +25,19 @@ class SpeechPanel(QWidget):
         
         # 创建控制按钮
         self.control_layout = QHBoxLayout()
+        
+        # 音频来源选择
+        self.audio_source_label = QLabel("音频来源:")
+        self.audio_source_combo = QComboBox()
+        self.audio_source_combo.addItem("麦克风", "microphone")
+        self.audio_source_combo.addItem("系统音频", "system")
+        
         self.start_button = QPushButton("开始录音")
         self.stop_button = QPushButton("停止录音")
         self.stop_button.setEnabled(False)
         
+        self.control_layout.addWidget(self.audio_source_label)
+        self.control_layout.addWidget(self.audio_source_combo)
         self.control_layout.addWidget(self.start_button)
         self.control_layout.addWidget(self.stop_button)
         
@@ -78,9 +87,12 @@ class SpeechPanel(QWidget):
             self.transcription_text.clear()
             self.analysis_text.clear()
             
+            # 获取选择的音频来源
+            audio_source = self.audio_source_combo.currentData()
+            
             # 开始录音
-            self.recognizer.start_recording(callback=self.on_recognize)
-            logger.info("开始录音")
+            self.recognizer.start_recording(callback=self.on_recognize, audio_source=audio_source)
+            logger.info(f"开始录音，音频来源: {audio_source}")
         except Exception as e:
             logger.error("开始录音失败: %s" % str(e))
             self.analysis_text.append("错误: 开始录音失败 - %s" % str(e))
